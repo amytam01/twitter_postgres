@@ -47,7 +47,7 @@ def get_id_urls(url):
     If no row exists for the url, then one is inserted automatically.
     '''
     sql = sqlalchemy.sql.text('''
-    insert into urls 
+    insert into urls
         (url)
         values
         (:url)
@@ -58,7 +58,7 @@ def get_id_urls(url):
     res = connection.execute(sql,{'url':url}).first()
     if res is None:
         sql = sqlalchemy.sql.text('''
-        select id_urls 
+        select id_urls
         from urls
         where
             url=:url
@@ -83,7 +83,7 @@ def insert_tweet(connection,tweet):
 
     # skip tweet if it's already inserted
     sql=sqlalchemy.sql.text('''
-    SELECT id_tweets 
+    SELECT id_tweets
     FROM tweets
     WHERE id_tweets = :id_tweets
     ''')
@@ -107,7 +107,58 @@ def insert_tweet(connection,tweet):
 
         # create/update the user
         sql = sqlalchemy.sql.text('''
+        INSERT INTO USERS (
+        id_users,
+        created_at,
+        updated_at,
+        id_urls,
+        friends_count,
+        listed_count,
+        favourites_count,
+        statuses_count,
+        protected,
+        verified,
+        name,
+        location,
+        description,
+        withheld_in_countries)
+
+        VALUES (
+        :id_users,
+        :created_at,
+        :updated_at,
+        :id_urls,
+        :friends_count,
+        :listed_count,
+        :favourites_count,
+        :statuses_count,
+        :protected,
+        :verified,
+        :name,
+        :location,
+        :description,
+        :withheld_in_countries)
+        )
             ''')
+
+        connection.execute(sql, {
+        'id_users':tweet['user']['id'],
+        'created_at':tweet.get('created_at', None),
+        'updated_at':tweet.get('updated_at', None),
+        'id_urls':tweet.get('id_urls', None),
+        'friends_count':tweet.get('friends_count', None),
+        'listed_count':tweet.get('listed_count', None),
+        'favourites_count':tweet.get('favourites_count', None),
+        'statuses_count':tweet.get('statuses_count', None),
+        'protected':tweet.get('protected', None),
+        'verified':tweet.get('verified', None),
+        'screen_name':remove_nulls(tweet.get('screen_name', None)),
+        'name':remove_nulls(tweet.get(['name'], None)),
+        'location':remove_nulls(tweet['location']),
+        'description':remove_nulls(tweet['description']),
+        'withheld_in_countries':tweet.get('withheld_in_countries', None)
+
+          })
 
         ########################################
         # insert into the tweets table
@@ -165,11 +216,78 @@ def insert_tweet(connection,tweet):
         # If the id is not in the users table, then you'll need to add it in an "unhydrated" form.
         if tweet.get('in_reply_to_user_id',None) is not None:
             sql=sqlalchemy.sql.text('''
+            INSERT INTO users(id_users)
+            VALUES(:id_users)
                 ''')
+            connection.execute(sql, {
+            'id_users':tweet['in_reply_to_user_id'],
+             })
 
         # insert the tweet
-        sql=sqlalchemy.sql.text(f'''
+        sql=sqlalchemy.sql.text('''
+        INSERT INTO tweets (
+        id_tweets,
+        id_users,
+        created_at,
+        in_reply_to_status_id,
+        in_reply_to_user_id,
+        quoted_status_id,
+        retweet_count,
+        quote_count,
+        favorite_count,
+        withheld_copyright,
+        withheld_in_countries,
+        place_name,
+        country_code,
+        state_code,
+        lang,
+        text,
+        source,
+        geo
+        )
+
+        VALUES (
+        :id_tweets,
+        :id_users,
+        :created_at,
+        :in_reply_to_status_id,
+        :in_reply_to_user_id,
+        :quoted_status_id,
+        :retweet_count,
+        :quote_count,
+        :favorite_count,
+        :withheld_copyright,
+        :withheld_in_countries,
+        :place_name,
+        :country_code,
+        :state_code,
+        :lang,
+        :text,
+        :source,
+        :geo
             ''')
+
+        connection.execute(sql, {
+          'id_tweets':tweet['id'],
+          'id_users':tweet['user']['id'],
+          'created_at':tweet['created_at'],
+          'in_reply_to_status_id':tweet.get('in_reply_to_status_id', None),
+          'in_reply_to_user_id':tweet.get('in_reply_to_user_id', None),
+          'quoted_status_id':tweet.get('quoted_status_id', None),
+          'retweet_count':tweet.get('retweet_count', None),
+          'quote_count':tweet.get('quote_count', None),
+          'favorite_count':tweet.get('favorite_count', None),
+          'withheld_copyright':tweet.get('withheld_copyright', None),
+          'withheld_in_countries':tweet.get('withheld_in_countries', None),
+          'place_name':remove_nulls(tweet['place_name']),
+          'country_code':tweet.get('country_code', None),
+          'state_code':tweet.get('state_code', None),
+          'lang':tweet.get('lang', None),
+          'text':remove_nulls(text),
+          'source':remove_nulls(place_name),
+          'geo':None # homework hints :)
+        }
+      )
 
         ########################################
         # insert into the tweet_urls table
@@ -184,7 +302,14 @@ def insert_tweet(connection,tweet):
             id_urls = get_id_urls(url['expanded_url'])
 
             sql=sqlalchemy.sql.text('''
+            INSERT INTO tweets_urls (id_tweets, id_urls)
+            VALUES (:id_tweets, :id_urls)
                 ''')
+            connection.execute(sql, {
+                  'id_tweets':tweet['id'],
+                  'id_urls':id_urls
+                  }
+                )
 
         ########################################
         # insert into the tweet_mentions table
@@ -203,20 +328,26 @@ def insert_tweet(connection,tweet):
             # therefore, we must store the user info "unhydrated"
             # HINT:
             # use the ON CONFLICT DO NOTHING syntax
-            sql=sqlalchemy.sql.text('''
-                ''')
 
             # insert into tweet_mentions
             sql=sqlalchemy.sql.text('''
+            INSERT INTO tweet_mentions (id_tweets, id_users)
+            VALUES (:id_tweets, :id_users)
+            ON CONFLICT DO NOTHING
                 ''')
+            connection.execute(sql, {
+              'id_users':tweet['id'],
+              'id_tweets':tweet['user']['id']
+              }
+            )
 
         ########################################
         # insert into the tweet_tags table
         ########################################
 
         try:
-            hashtags = tweet['extended_tweet']['entities']['hashtags'] 
-            cashtags = tweet['extended_tweet']['entities']['symbols'] 
+            hashtags = tweet['extended_tweet']['entities']['hashtags']
+            cashtags = tweet['extended_tweet']['entities']['symbols']
         except KeyError:
             hashtags = tweet['entities']['hashtags']
             cashtags = tweet['entities']['symbols']
@@ -225,7 +356,14 @@ def insert_tweet(connection,tweet):
 
         for tag in tags:
             sql=sqlalchemy.sql.text('''
+            INSERT INTO tweet_tags (id_tweets, tag)
+            VALUES (:id_tweets, :tag)
                 ''')
+            connection.execute(sql, {
+              'id_tweets':tweet['id'],
+              'tag':tag
+              }
+            )
 
         ########################################
         # insert into the tweet_media table
@@ -242,7 +380,16 @@ def insert_tweet(connection,tweet):
         for medium in media:
             id_urls = get_id_urls(medium['media_url'])
             sql=sqlalchemy.sql.text('''
+            INSERT INTO tweet_media (id_tweets, id_urls, type)
+            VALUES(:id_tweets, :media_urls, :type)
                 ''')
+            connection.execute(sql, {
+              "id_tweets":tweet['id'],
+              "media_urls":media_urls,
+              "type":type
+              }
+            )
+
 
 
 # loop through the input file
@@ -250,7 +397,7 @@ def insert_tweet(connection,tweet):
 # we reverse sort the filenames because this results in fewer updates to the users table,
 # which prevents excessive dead tuples and autovacuums
 for filename in sorted(args.inputs, reverse=True):
-    with zipfile.ZipFile(filename, 'r') as archive: 
+    with zipfile.ZipFile(filename, 'r') as archive:
         print(datetime.datetime.now(),filename)
         for subfilename in sorted(archive.namelist(), reverse=True):
             with io.TextIOWrapper(archive.open(subfilename)) as f:

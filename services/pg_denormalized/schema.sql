@@ -2,21 +2,21 @@
 
 BEGIN;
 
---------------------------------------------------------------------------------    
+--------------------------------------------------------------------------------
 -- data tables
---------------------------------------------------------------------------------    
+--------------------------------------------------------------------------------
 
 CREATE TABLE tweets_jsonb (
     data JSONB
 );
 
---------------------------------------------------------------------------------    
+--------------------------------------------------------------------------------
 -- the views below represent normalized tables
---------------------------------------------------------------------------------    
+--------------------------------------------------------------------------------
 
 CREATE VIEW tweets AS (
-    SELECT 
-        data->>'id' AS id_tweets, 
+    SELECT
+        data->>'id' AS id_tweets,
         data->'user'->>'id' AS id_users,
         (data->>'created_at') :: TIMESTAMPTZ AS created_at,
         data->>'in_reply_to_status_id' AS in_reply_to_status_id,
@@ -99,9 +99,9 @@ CREATE VIEW tweet_media AS (
  * Precomputes the total number of occurrences for each hashtag
  */
 CREATE VIEW tweet_tags_total AS (
-    SELECT 
+    SELECT
         row_number() over (order by count(*) desc) AS row,
-        tag, 
+        tag,
         count(*) AS total
     FROM tweet_tags
     GROUP BY tag
@@ -112,7 +112,7 @@ CREATE VIEW tweet_tags_total AS (
  * Precomputes the number of hashtags that co-occur with each other
  */
 CREATE VIEW tweet_tags_cooccurrence AS (
-    SELECT 
+    SELECT
         t1.tag AS tag1,
         t2.tag AS tag2,
         count(*) AS total
