@@ -23,7 +23,7 @@ services:
       - POSTGRES_PASSWORD=pass
       - PGUSER=postgres
     ports:
-      - 2339:5432
+      - 2139:5432
 
 volumes:
     pg_normalized:
